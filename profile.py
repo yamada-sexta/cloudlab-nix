@@ -193,8 +193,9 @@ for i in range(params.nodeCount):
         pg.Execute(
             shell="sh",
             command=(
-                "sudo /bin/bash /local/repository/setup-nixos.sh "
-                f"{params.githubUser} {params.localUser}"
+                "sudo /bin/bash /local/repository/setup-nixos.sh {} {}".format(
+                    params.githubUser, params.localUser
+                )
             ),
         )
     )
