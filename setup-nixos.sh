@@ -129,6 +129,20 @@ cat <<EOF > /etc/nixos/cloudlab-import.nix
     openssh.authorizedKeys.keys = [ $KEYS_NIX ];
   };
 
+  environment.systemPackages = with pkgs; [
+    curl
+    git
+    htop
+    nano
+    rsync
+    tmux
+    tree
+    unzip
+    vim
+    wget
+    zip
+  ];
+
   security.sudo.wheelNeedsPassword = false;
 }
 EOF
