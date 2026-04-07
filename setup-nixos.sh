@@ -84,8 +84,11 @@ append_github_keys
 install_ubuntu_keys
 KEYS_NIX="$(build_nix_keys)"
 
-# Define the NixOS configuration
-cat <<EOF > /root/custom-cloudlab.nix
+mkdir -p /etc/nixos
+
+# Define the NixOS configuration in /etc/nixos so nixos-infect preserves it
+# during the lustration step and future rebuilds can still import it.
+cat <<EOF > /etc/nixos/cloudlab-import.nix
 { config, pkgs, ... }:
 {
   imports = [
@@ -124,7 +127,7 @@ cat <<EOF > /root/custom-cloudlab.nix
 }
 EOF
 
-export NIXOS_IMPORT=/root/custom-cloudlab.nix
+export NIXOS_IMPORT=/etc/nixos/cloudlab-import.nix
 curl -fsSL https://raw.githubusercontent.com/elitak/nixos-infect/master/nixos-infect -o /root/nixos-infect
 chmod +x /root/nixos-infect
 

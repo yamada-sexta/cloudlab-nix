@@ -20,6 +20,11 @@ enables a serial getty there, and enables OpenSSH with the preserved key set.
 That is intended to keep both the CloudLab web console and SSH usable after the
 post-infect reboot.
 
+The generated import is written under `/etc/nixos` rather than `/root`. This is
+important because `nixos-infect` preserves `/etc/nixos` across the filesystem
+switch, while a temporary config under `/root` may not remain available for the
+installed system or future `nixos-rebuild` runs.
+
 ## Compatibility note
 
 CloudLab's profile execution environment appears to parse `profile.py` with an
