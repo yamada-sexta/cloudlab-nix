@@ -104,12 +104,18 @@ cat <<EOF > /etc/nixos/cloudlab-import.nix
   networking.firewall.enable = false;
 
   boot.kernelParams = [ "console=ttyS0,115200n8" "console=tty0" ];
+  boot.consoleLogLevel = 7;
   boot.loader.grub.extraConfig = ''
     serial --speed=115200 --unit=0 --word=8 --parity=no --stop=1
     terminal_input serial console
     terminal_output serial console
   '';
   systemd.services."serial-getty@ttyS0".wantedBy = [ "getty.target" ];
+  systemd.journald.extraConfig = ''
+    ForwardToConsole=yes
+    TTYPath=/dev/ttyS0
+    MaxLevelConsole=debug
+  '';
 
   services.openssh.enable = true;
   services.openssh.settings.PasswordAuthentication = false;
@@ -132,4 +138,7 @@ curl -fsSL https://raw.githubusercontent.com/elitak/nixos-infect/master/nixos-in
 chmod +x /root/nixos-infect
 
 log "Starting nixos-infect for ${CLOUDLAB_USER}"
-/root/nixos-infect 2>&1 | tee /var/log/nixos-infect.log
+NO_REBOOT=1 /root/nixos-infect 2>&1 | tee /var/log/nixos-infect.log
+
+log "nixos-infect completed; scheduling reboot"
+/bin/sh -c 'sleep 5; reboot' >/dev/null 2>&1 &
