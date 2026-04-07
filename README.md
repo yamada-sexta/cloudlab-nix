@@ -10,7 +10,8 @@ base image for the configured `cloudlabUser`. That same username is created on
 NixOS.
 
 If `githubUser` is set, the profile also fetches that account's public GitHub
-keys and adds them alongside the preserved CloudLab keys.
+keys and adds them alongside the preserved CloudLab keys on both the initial
+Ubuntu system and the resulting NixOS system.
 
 ## Console and boot behavior
 

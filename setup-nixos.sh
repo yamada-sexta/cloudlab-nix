@@ -50,6 +50,26 @@ append_github_keys() {
     fi
 }
 
+install_ubuntu_keys() {
+    local user_home ssh_dir auth_keys
+
+    user_home="$(getent passwd "${CLOUDLAB_USER}" | cut -d: -f6 || true)"
+    if [ -z "${user_home}" ]; then
+        log "Could not determine home directory for ${CLOUDLAB_USER}; skipping Ubuntu key install."
+        return
+    fi
+
+    ssh_dir="${user_home}/.ssh"
+    auth_keys="${ssh_dir}/authorized_keys"
+
+    install -d -m 700 -o "${CLOUDLAB_USER}" -g "${CLOUDLAB_USER}" "${ssh_dir}"
+    touch "${auth_keys}"
+    cat "${KEYS_FILE}" | awk 'NF && !seen[$0]++' > "${auth_keys}.tmp"
+    chown "${CLOUDLAB_USER}:${CLOUDLAB_USER}" "${auth_keys}.tmp"
+    chmod 600 "${auth_keys}.tmp"
+    mv "${auth_keys}.tmp" "${auth_keys}"
+}
+
 build_nix_keys() {
     awk '
         NF && !seen[$0]++ {
@@ -61,6 +81,7 @@ build_nix_keys() {
 
 append_cloudlab_keys
 append_github_keys
+install_ubuntu_keys
 KEYS_NIX="$(build_nix_keys)"
 
 # Define the NixOS configuration
