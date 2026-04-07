@@ -123,6 +123,12 @@ cat <<EOF > /etc/nixos/cloudlab-import.nix
   services.openssh.settings.PermitRootLogin = "prohibit-password";
 
   nix.settings.experimental-features = [ "nix-command" "flakes" ];
+  systemd.sleep.extraConfig = ''
+    AllowSuspend=no
+    AllowHibernation=no
+    AllowHybridSleep=no
+    AllowSuspendThenHibernate=no
+  '';
 
   users.users.root.openssh.authorizedKeys.keys = [ $KEYS_NIX ];
   users.users.${CLOUDLAB_USER} = {
