@@ -1,26 +1,67 @@
 #!/bin/bash
 set -euxo pipefail
 
-GITHUB_USER="${1:?missing GitHub username}"
-LOCAL_USER="${2:?missing local username}"
+CLOUDLAB_USER="${1:?missing CloudLab username}"
+GITHUB_USER="${2:-}"
 
 log() {
     printf '[setup-nixos] %s\n' "$*"
 }
 
-# Startup services can race early network bring-up, so give DHCP a few tries.
-for _ in $(seq 1 30); do
-    if curl -fsS https://github.com >/dev/null; then
-        break
-    fi
-    sleep 2
-done
+KEYS_FILE="$(mktemp)"
+trap 'rm -f "${KEYS_FILE}"' EXIT
 
-KEYS_NIX="$(curl -fsS "https://github.com/${GITHUB_USER}.keys" | awk '{print "\"" $0 "\""}' || true)"
-if [ -z "${KEYS_NIX}" ]; then
-    log "No GitHub keys found for ${GITHUB_USER}; keeping CloudLab access only."
-    KEYS_NIX="\"\""
-fi
+append_cloudlab_keys() {
+    local user_home auth_keys
+
+    user_home="$(getent passwd "${CLOUDLAB_USER}" | cut -d: -f6 || true)"
+    if [ -z "${user_home}" ]; then
+        log "Could not determine home directory for ${CLOUDLAB_USER}"
+        return
+    fi
+
+    auth_keys="${user_home}/.ssh/authorized_keys"
+    if [ -f "${auth_keys}" ]; then
+        log "Preserving CloudLab authorized_keys from ${auth_keys}"
+        cat "${auth_keys}" >> "${KEYS_FILE}"
+        return
+    fi
+
+    log "No authorized_keys found for ${CLOUDLAB_USER} at ${auth_keys}"
+}
+
+append_github_keys() {
+    if [ -z "${GITHUB_USER}" ]; then
+        return
+    fi
+
+    # Startup services can race early network bring-up, so give DHCP a few tries.
+    for _ in $(seq 1 30); do
+        if curl -fsS https://github.com >/dev/null; then
+            break
+        fi
+        sleep 2
+    done
+
+    if curl -fsS "https://github.com/${GITHUB_USER}.keys" >> "${KEYS_FILE}"; then
+        log "Fetched GitHub keys for ${GITHUB_USER}"
+    else
+        log "No GitHub keys found for ${GITHUB_USER}; continuing with CloudLab keys only."
+    fi
+}
+
+build_nix_keys() {
+    awk '
+        NF && !seen[$0]++ {
+            gsub(/"/, "\\\"", $0)
+            printf "\"%s\" ", $0
+        }
+    ' "${KEYS_FILE}"
+}
+
+append_cloudlab_keys
+append_github_keys
+KEYS_NIX="$(build_nix_keys)"
 
 # Define the NixOS configuration
 cat <<EOF > /root/custom-cloudlab.nix
@@ -41,7 +82,7 @@ cat <<EOF > /root/custom-cloudlab.nix
   services.openssh.enable = true;
 
   users.users.root.openssh.authorizedKeys.keys = [ $KEYS_NIX ];
-  users.users.${LOCAL_USER} = {
+  users.users.${CLOUDLAB_USER} = {
     isNormalUser = true;
     extraGroups = [ "wheel" "systemd-network" ];
     openssh.authorizedKeys.keys = [ $KEYS_NIX ];
@@ -55,5 +96,5 @@ export NIXOS_IMPORT=/root/custom-cloudlab.nix
 curl -fsSL https://raw.githubusercontent.com/elitak/nixos-infect/master/nixos-infect -o /root/nixos-infect
 chmod +x /root/nixos-infect
 
-log "Starting nixos-infect for ${LOCAL_USER}"
+log "Starting nixos-infect for ${CLOUDLAB_USER}"
 /root/nixos-infect 2>&1 | tee /var/log/nixos-infect.log

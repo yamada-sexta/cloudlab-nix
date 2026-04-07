@@ -3,7 +3,7 @@
 Instructions:
 Wait for the experiment to start. The nodes will boot a hidden Ubuntu base, automatically run
 `nixos-infect` to install NixOS, and reboot. Once they come back online, you can
-log in via SSH using the local username and GitHub keys you specified.
+log in via SSH using the CloudLab username and keys you specified.
 
 Compatibility note:
 CloudLab appears to parse this profile with an older Python runtime, so keep
@@ -19,19 +19,22 @@ request = pc.makeRequestRSpec()
 
 # --- NIXOS PARAMETERS ---
 pc.defineParameter(
+    "cloudlabUser",
+    "CloudLab Username",
+    portal.ParameterType.STRING,
+    "yamada",
+    longDescription="The CloudLab username to preserve during the NixOS conversion. "
+    "This same username will be created on NixOS, and its existing CloudLab "
+    "authorized SSH keys will be carried forward.",
+)
+
+pc.defineParameter(
     "githubUser",
     "GitHub Username",
     portal.ParameterType.STRING,
     "yamada-sexta",
-    longDescription="The GitHub username whose public SSH keys will be injected into NixOS.",
-)
-
-pc.defineParameter(
-    "localUser",
-    "Local NixOS Username",
-    portal.ParameterType.STRING,
-    "yamada",
-    longDescription="The local user account that will be created on the NixOS system.",
+    longDescription="Optional GitHub username whose public SSH keys will also be added "
+    "to the NixOS root and CloudLab user accounts.",
 )
 
 # --- TOPOLOGY PARAMETERS ---
@@ -141,6 +144,12 @@ if params.phystype != "":
         pc.reportError(
             portal.ParameterError("Only a single type is allowed", ["phystype"])
         )
+if " " in params.cloudlabUser:
+    pc.reportError(
+        portal.ParameterError(
+            "CloudLab username must not contain whitespace.", ["cloudlabUser"]
+        )
+    )
 
 pc.verifyParameters()
 
@@ -198,7 +207,7 @@ for i in range(params.nodeCount):
             shell="sh",
             command=(
                 "sudo /bin/bash /local/repository/setup-nixos.sh {} {}".format(
-                    params.githubUser, params.localUser
+                    params.cloudlabUser, params.githubUser
                 )
             ),
         )

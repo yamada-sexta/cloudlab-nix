@@ -3,6 +3,15 @@
 CloudLab repo-based profile that boots an Ubuntu base image, runs `nixos-infect`,
 and reboots into NixOS.
 
+## SSH behavior
+
+The NixOS bootstrap preserves the CloudLab SSH access that already exists on the
+base image for the configured `cloudlabUser`. That same username is created on
+NixOS.
+
+If `githubUser` is set, the profile also fetches that account's public GitHub
+keys and adds them alongside the preserved CloudLab keys.
+
 ## Compatibility note
 
 CloudLab's profile execution environment appears to parse `profile.py` with an
