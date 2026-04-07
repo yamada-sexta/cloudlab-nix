@@ -4,6 +4,10 @@ Instructions:
 Wait for the experiment to start. The nodes will boot a hidden Ubuntu base, automatically run
 `nixos-infect` to install NixOS, and reboot. Once they come back online, you can
 log in via SSH using the local username and GitHub keys you specified.
+
+Compatibility note:
+CloudLab appears to parse this profile with an older Python runtime, so keep
+this file compatible with pre-Python-3.6 syntax. In particular, avoid f-strings.
 """
 
 import geni.portal as portal
