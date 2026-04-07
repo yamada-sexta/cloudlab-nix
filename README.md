@@ -12,6 +12,13 @@ NixOS.
 If `githubUser` is set, the profile also fetches that account's public GitHub
 keys and adds them alongside the preserved CloudLab keys.
 
+## Console and boot behavior
+
+The generated NixOS config explicitly keeps serial console output on `ttyS0`,
+enables a serial getty there, and enables OpenSSH with the preserved key set.
+That is intended to keep both the CloudLab web console and SSH usable after the
+post-infect reboot.
+
 ## Compatibility note
 
 CloudLab's profile execution environment appears to parse `profile.py` with an

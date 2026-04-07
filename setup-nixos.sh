@@ -77,9 +77,20 @@ cat <<EOF > /root/custom-cloudlab.nix
     matchConfig.Name = "en* eth*";
     networkConfig.DHCP = "ipv4";
   };
+  networking.firewall.enable = false;
 
   boot.kernelParams = [ "console=ttyS0,115200n8" "console=tty0" ];
+  boot.loader.grub.extraConfig = ''
+    serial --speed=115200 --unit=0 --word=8 --parity=no --stop=1
+    terminal_input serial console
+    terminal_output serial console
+  '';
+  systemd.services."serial-getty@ttyS0".wantedBy = [ "getty.target" ];
+
   services.openssh.enable = true;
+  services.openssh.settings.PasswordAuthentication = false;
+  services.openssh.settings.KbdInteractiveAuthentication = false;
+  services.openssh.settings.PermitRootLogin = "prohibit-password";
 
   users.users.root.openssh.authorizedKeys.keys = [ $KEYS_NIX ];
   users.users.${CLOUDLAB_USER} = {
