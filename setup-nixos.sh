@@ -122,6 +122,8 @@ cat <<EOF > /etc/nixos/cloudlab-import.nix
   services.openssh.settings.KbdInteractiveAuthentication = false;
   services.openssh.settings.PermitRootLogin = "prohibit-password";
 
+  nix.settings.experimental-features = [ "nix-command" "flakes" ];
+
   users.users.root.openssh.authorizedKeys.keys = [ $KEYS_NIX ];
   users.users.${CLOUDLAB_USER} = {
     isNormalUser = true;
