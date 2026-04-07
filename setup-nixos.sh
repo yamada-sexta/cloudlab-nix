@@ -1,6 +1,26 @@
 #!/bin/bash
-GITHUB_USER=$1
-KEYS_NIX=$(curl -s https://github.com/${GITHUB_USER}.keys | awk '{print "\"" $0 "\""}')
+set -euxo pipefail
+
+GITHUB_USER="${1:?missing GitHub username}"
+LOCAL_USER="${2:?missing local username}"
+
+log() {
+    printf '[setup-nixos] %s\n' "$*"
+}
+
+# Startup services can race early network bring-up, so give DHCP a few tries.
+for _ in $(seq 1 30); do
+    if curl -fsS https://github.com >/dev/null; then
+        break
+    fi
+    sleep 2
+done
+
+KEYS_NIX="$(curl -fsS "https://github.com/${GITHUB_USER}.keys" | awk '{print "\"" $0 "\""}' || true)"
+if [ -z "${KEYS_NIX}" ]; then
+    log "No GitHub keys found for ${GITHUB_USER}; keeping CloudLab access only."
+    KEYS_NIX="\"\""
+fi
 
 # Define the NixOS configuration
 cat <<EOF > /root/custom-cloudlab.nix
@@ -21,7 +41,7 @@ cat <<EOF > /root/custom-cloudlab.nix
   services.openssh.enable = true;
 
   users.users.root.openssh.authorizedKeys.keys = [ $KEYS_NIX ];
-  users.users.yamada = {
+  users.users.${LOCAL_USER} = {
     isNormalUser = true;
     extraGroups = [ "wheel" "systemd-network" ];
     openssh.authorizedKeys.keys = [ $KEYS_NIX ];
@@ -32,6 +52,8 @@ cat <<EOF > /root/custom-cloudlab.nix
 EOF
 
 export NIXOS_IMPORT=/root/custom-cloudlab.nix
-curl -L https://raw.githubusercontent.com/elitak/nixos-infect/master/nixos-infect -o nixos-infect
-chmod +x nixos-infect
-./nixos-infect 2>&1 | tee /var/log/nixos-infect.log
+curl -fsSL https://raw.githubusercontent.com/elitak/nixos-infect/master/nixos-infect -o /root/nixos-infect
+chmod +x /root/nixos-infect
+
+log "Starting nixos-infect for ${LOCAL_USER}"
+/root/nixos-infect 2>&1 | tee /var/log/nixos-infect.log

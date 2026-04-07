@@ -140,64 +140,6 @@ if params.phystype != "":
 
 pc.verifyParameters()
 
-# --- NIXOS INFECT SCRIPT DEFINITION ---
-# We define this once and inject it into all nodes.
-setup_script = r"""#!/bin/bash
-GITHUB_USER="%s"
-LOCAL_USER="%s"
-
-# Fetch GitHub keys
-KEYS_NIX=$(curl -s https://github.com/${GITHUB_USER}.keys | awk '{print "\"" $0 "\""}')
-if [ -z "$KEYS_NIX" ]; then
-    echo "Warning: Could not fetch keys for $GITHUB_USER"
-    KEYS_NIX="\"\""
-fi
-
-# Create the NixOS config
-cat <<EOF > /root/custom-cloudlab.nix
-{ config, pkgs, ... }:
-{
-  imports = [
-    (builtins.fetchTarball "https://github.com/mars-research/miniond/archive/main.tar.gz" + "/nixos/recommended-no-flakes.nix")
-  ];
-
-  networking.useNetworkd = true;
-  systemd.network.enable = true;
-  systemd.network.networks."10-cloudlab-dhcp" = {
-    matchConfig.Name = "en* eth*";
-    networkConfig.DHCP = "ipv4";
-  };
-
-  boot.kernelParams = [ "console=ttyS0,115200n8" "console=tty0" ];
-  services.openssh.enable = true;
-
-  users.users.root.openssh.authorizedKeys.keys = [ $KEYS_NIX ];
-  users.users.${LOCAL_USER} = {
-    isNormalUser = true;
-    extraGroups = [ "wheel" "systemd-network" ];
-    openssh.authorizedKeys.keys = [ $KEYS_NIX ];
-  };
-
-  security.sudo.wheelNeedsPassword = false;
-}
-EOF
-
-export NIXOS_IMPORT=/root/custom-cloudlab.nix
-curl -O https://raw.githubusercontent.com/elitak/nixos-infect/master/nixos-infect
-chmod +x nixos-infect
-
-# Run the infect script
-./nixos-infect 2>&1 | tee /var/log/nixos-infect.log
-""" % (
-    params.githubUser,
-    params.localUser,
-)
-
-write_and_run = (
-    "cat << 'END_SETUP' > /tmp/setup_nixos.sh\n%s\nEND_SETUP\nbash /tmp/setup_nixos.sh"
-    % setup_script
-)
-
 # --- TOPOLOGY GENERATION ---
 if params.nodeCount > 1:
     if params.nodeCount == 2:
@@ -244,7 +186,17 @@ for i in range(params.nodeCount):
     if params.startVNC:
         node.startVNC()
 
-    # --- INJECT NIXOS EXECUTION ---
-    node.addService(pg.Execute(shell="bash", command=write_and_run))
+    # CloudLab clones a repo-based profile into /local/repository on each node.
+    # Run the infect script from there with sudo so it can write /root/*
+    # and perform the OS replacement.
+    node.addService(
+        pg.Execute(
+            shell="sh",
+            command=(
+                "sudo /bin/bash /local/repository/setup-nixos.sh "
+                f"{params.githubUser} {params.localUser}"
+            ),
+        )
+    )
 
 pc.printRequestRSpec(request)
